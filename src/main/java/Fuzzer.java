@@ -1,5 +1,9 @@
+import static org.junit.Assert.*;
+import io.swagger.models.HttpMethod;
+import io.swagger.models.Operation;
 import io.swagger.models.Path;
 import io.swagger.models.Swagger;
+import io.swagger.models.parameters.Parameter;
 import io.swagger.parser.SwaggerParser;
 
 import java.io.BufferedReader;
@@ -7,7 +11,12 @@ import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
+
+import junit.framework.Assert;
 
 import org.json.simple.JSONObject;
 import org.junit.Test;
@@ -18,7 +27,6 @@ public class Fuzzer {
 	
 	@Test
 	public void setup() {
-		// TODO Auto-generated method stub
 		Swagger swagger = new SwaggerParser().read("swagger.json");
 		String basePath = "http://localhost:8080" + swagger.getBasePath();
 		
@@ -27,25 +35,55 @@ public class Fuzzer {
 		    String cle = entry.getKey();
 		    Path p = entry.getValue();
 		    
-		    System.out.println(p.getOperationMap());
+		    Map<HttpMethod, Operation> listOp = p.getOperationMap();
 		    
-		    try {
-				this.fuzzing(basePath + cle);
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+		    for(Entry<HttpMethod, Operation> list : listOp.entrySet()) {
+			    HttpMethod method = list.getKey();
+			    Operation operation = list.getValue();
+			    
+			    System.out.println(method);
+			    
+			    // If getIn() == path  et require remplacer {id} par un chiffre
+			    // chiffre aléatoire + modifier serveur node pour renvoyer erreur
+			    System.out.println(operation.getParameters().get(0).getIn());
+			    
+			    try {
+					JSONObject json = new JSONObject();
+					json.put("id", 666);
+					json.put("name", "Jacky");
+					json.put("tag", "Salut");
+					
+					// for verifier code retour avec getResponses()
+					System.out.println(operation.getResponses());
+					assertTrue("La méthode appelée ne renvoie pas le bon code retour", operation.getResponses().containsKey(String.valueOf(this.fuzzing(basePath + cle, method.toString(), operation.getParameters()))));
+				} catch (Exception e) {
+					e.printStackTrace();
+					fail("Connection error");
+				}
+		    }
 		    
 		    System.out.println(cle);
 		}
 	}
 	
-	public void fuzzing(String path) throws Exception {
-		//this.get(path);
-		this.post(path);
+	public int fuzzing(String path, String method, List<Parameter> params) throws Exception {
+		if(method.equals("GET")){
+			return this.get(path, params);
+		}
+		else{
+			return this.otherRequest(path, params, method);
+		}
 	}
 	
-	public void get(String url) throws Exception{
+	public int get(String url, List<Parameter> params) throws Exception{
+		
+		for (Parameter p : params) {
+			if (p.getRequired()) {
+				if (p.getIn().equals("path")) {
+					url = url.replaceAll("\\{.*?\\}", String.valueOf(new Random().nextInt()));
+				}
+			}
+		}
 
 		URL obj = new URL(url);
 		HttpURLConnection con = (HttpURLConnection) obj.openConnection();
@@ -72,10 +110,18 @@ public class Fuzzer {
 
 		//print result
 		System.out.println(response.toString());
+		return responseCode;
 	}
 	
-	public void post(String url) throws Exception{
-		JSONObject json = new JSONObject();
+	public int otherRequest(String url, List<Parameter> params, String method) throws Exception{
+		
+		for (Parameter p : params) {
+			if (p.getRequired()) {
+				if (p.getIn().equals("path")) {
+					url = url.replaceAll("\\{.*?\\}", String.valueOf(new Random().nextInt()));
+				}
+			}
+		}JSONObject json = new JSONObject();
 		json.put("id", 666);
 		json.put("name", "Jacky");
 		json.put("tag", "Salut");
@@ -88,7 +134,7 @@ public class Fuzzer {
 		con.setRequestProperty("Content-Type", "application/json");
 		con.setRequestProperty("User-Agent", USER_AGENT);
 		con.setRequestProperty("Accept", "application/json");
-		con.setRequestMethod("POST");
+		con.setRequestMethod(method);
 
 		// Send post request
 		con.setDoOutput(true);
@@ -98,7 +144,7 @@ public class Fuzzer {
 		wr.close();
 
 		int responseCode = con.getResponseCode();
-		System.out.println("\nSending 'POST' request to URL : " + url);
+		System.out.println("\nSending '" + method + "' request to URL : " + url);
 		System.out.println("Post parameters : " + json.toJSONString());
 		System.out.println("Response Code : " + responseCode);
 
@@ -114,5 +160,6 @@ public class Fuzzer {
 
 		//print result
 		System.out.println(response.toString());
+		return responseCode;
 	}
 }
