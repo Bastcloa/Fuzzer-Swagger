@@ -53,9 +53,8 @@ public class Fuzzer {
 					json.put("name", "Jacky");
 					json.put("tag", "Salut");
 					
-					// for verifier code retour avec getResponses()
-					System.out.println(operation.getResponses());
-					assertTrue("La méthode appelée ne renvoie pas le bon code retour", operation.getResponses().containsKey(String.valueOf(this.fuzzing(basePath + cle, method.toString(), operation.getParameters()))));
+					int codeRetour = this.fuzzing(basePath + cle, method.toString(), operation.getParameters());
+					assertTrue("La méthode appelée ne renvoie pas le bon code retour.\nCode retournée : " + codeRetour, operation.getResponses().containsKey(String.valueOf(codeRetour)));
 				} catch (Exception e) {
 					e.printStackTrace();
 					fail("Connection error");
@@ -93,21 +92,24 @@ public class Fuzzer {
 
 		//add request header
 		con.setRequestProperty("User-Agent", USER_AGENT);
-
-		int responseCode = con.getResponseCode();
+		int responseCode = 0;
+		StringBuffer response = new StringBuffer();
+		try{
+		 responseCode = con.getResponseCode();
 		System.out.println("\nSending 'GET' request to URL : " + url);
 		System.out.println("Response Code : " + responseCode);
 
 		BufferedReader in = new BufferedReader(
 		        new InputStreamReader(con.getInputStream()));
 		String inputLine;
-		StringBuffer response = new StringBuffer();
 
 		while ((inputLine = in.readLine()) != null) {
 			response.append(inputLine);
 		}
 		in.close();
 
+		}catch (Exception e) {
+		}
 		//print result
 		System.out.println(response.toString());
 		return responseCode;
@@ -143,7 +145,10 @@ public class Fuzzer {
 		wr.flush();
 		wr.close();
 
-		int responseCode = con.getResponseCode();
+		int responseCode = 0;
+		StringBuffer response = new StringBuffer();
+		try{
+		 responseCode = con.getResponseCode();
 		System.out.println("\nSending '" + method + "' request to URL : " + url);
 		System.out.println("Post parameters : " + json.toJSONString());
 		System.out.println("Response Code : " + responseCode);
@@ -151,13 +156,13 @@ public class Fuzzer {
 		BufferedReader in = new BufferedReader(
 		        new InputStreamReader(con.getInputStream()));
 		String inputLine;
-		StringBuffer response = new StringBuffer();
 
 		while ((inputLine = in.readLine()) != null) {
 			response.append(inputLine);
 		}
 		in.close();
-
+		}catch (Exception e) {
+		}
 		//print result
 		System.out.println(response.toString());
 		return responseCode;
