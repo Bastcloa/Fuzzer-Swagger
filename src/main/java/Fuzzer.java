@@ -1,4 +1,3 @@
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import io.swagger.models.HttpMethod;
 import io.swagger.models.Operation;
@@ -18,6 +17,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 
+import org.apache.commons.lang3.StringUtils;
 import org.hamcrest.CoreMatchers;
 import org.json.simple.JSONObject;
 import org.junit.Rule;
@@ -26,8 +26,8 @@ import org.junit.rules.ErrorCollector;
 
 public class Fuzzer {
 	private final String USER_AGENT = "Mozilla/5.0";
-	
-	private final int NBTESTS = 1;
+
+	private final int NBTESTS = 100;
 
 	@Rule
 	public ErrorCollector collector = new ErrorCollector();
@@ -37,30 +37,35 @@ public class Fuzzer {
 		Swagger swagger = new SwaggerParser().read("swagger.json");
 		String basePath = "http://localhost:8080" + swagger.getBasePath();
 
+		int nbAppelApi = 0;
+		
 		// System.out.println(swagger.getPaths());
 		for (Entry<String, Path> entry : swagger.getPaths().entrySet()) {
 			String cle = entry.getKey();
 			Path p = entry.getValue();
 
 			Map<HttpMethod, Operation> listOp = p.getOperationMap();
-			
+
 			System.out.print("\n\nTest " + cle);
-			
+
 			for (Entry<HttpMethod, Operation> list : listOp.entrySet()) {
 				HttpMethod method = list.getKey();
 				Operation operation = list.getValue();
 
-				System.out.println("\nTest de la méthode " + method + " " + cle);
+				System.out
+						.println("\nTest de la méthode " + method + " " + cle);
 				System.out.print("Sending request");
 				for (int i = 0; i < NBTESTS; i++) {
 					System.out.print(".");
+					nbAppelApi++;
 					try {
-						Pair<Integer, String> result = this.fuzzing(basePath
-								+ cle, method.toString(),
+						Triplet<Integer, String, String> result = this.fuzzing(
+								basePath + cle, method.toString(),
 								operation.getParameters());
 
 						int codeRetour = result.first();
 						String messageRetour = result.second();
+						String args = result.third();
 
 						collector
 								.checkThat(
@@ -73,8 +78,10 @@ public class Fuzzer {
 												+ "\nCode attendu : "
 												+ operation.getResponses()
 														.keySet()
+												+ "\nParamètres passés : "
+												+ args
 												+ "\nMessage retourné : "
-												+ messageRetour,
+												+ StringUtils.abbreviate(messageRetour,50),
 										operation.getResponses().containsKey(
 												String.valueOf(codeRetour)),
 										CoreMatchers.equalTo(true));
@@ -86,9 +93,11 @@ public class Fuzzer {
 			}
 
 		}
+		
+		System.out.println("\n\n" + nbAppelApi + " appels à l'API ont été effectués");
 	}
 
-	public Pair<Integer, String> fuzzing(String path, String method,
+	public Triplet<Integer, String, String> fuzzing(String path, String method,
 			List<Parameter> params) throws Exception {
 		if (method.equals("GET")) {
 			return this.get(path, params);
@@ -97,14 +106,17 @@ public class Fuzzer {
 		}
 	}
 
-	public Pair<Integer, String> get(String url, List<Parameter> params)
-			throws Exception {
+	public Triplet<Integer, String, String> get(String url,
+			List<Parameter> params) throws Exception {
 
+		String args = "";
 		for (Parameter p : params) {
 			if (p.getRequired()) {
 				if (p.getIn().equals("path")) {
-					url = url.replaceAll("\\{.*?\\}",
-							String.valueOf(new Random().nextInt()));
+					String arg = String.valueOf(new Random().nextInt());
+					url = url.replaceAll("\\{.*?\\}", arg);
+
+					args += "[" + p.getName() + " : " + arg + "]";
 				}
 			}
 		}
@@ -123,8 +135,8 @@ public class Fuzzer {
 
 		try {
 			responseCode = con.getResponseCode();
-			//System.out.println("\nSending 'GET' request to URL : " + url);
-			//System.out.println("Response Code : " + responseCode);
+			// System.out.println("\nSending 'GET' request to URL : " + url);
+			// System.out.println("Response Code : " + responseCode);
 
 			BufferedReader in = new BufferedReader(new InputStreamReader(
 					con.getInputStream()));
@@ -146,29 +158,72 @@ public class Fuzzer {
 			in.close();
 		}
 		// print result
-		//System.out.println(response.toString());
-		return new Pair<Integer, String>(responseCode, response.toString());
+		// System.out.println(response.toString());
+		return new Triplet<Integer, String, String>(responseCode,
+				response.toString(), args);
 	}
 
-	public Pair<Integer, String> otherRequest(String url,
+	@SuppressWarnings("unchecked")
+	public Triplet<Integer, String, String> otherRequest(String url,
 			List<Parameter> params, String method) throws Exception {
 
+		String args = "";
+
 		JSONObject json = new JSONObject();
-		
+
 		for (Parameter p : params) {
 			if (p.getRequired()) {
 				if (p.getIn().equals("path")) {
-					url = url.replaceAll("\\{.*?\\}",
-							String.valueOf(new Random().nextInt()));
+					String arg = String.valueOf(new Random().nextInt());
+					url = url.replaceAll("\\{.*?\\}", arg);
+
+					args += "[" + p.getName() + " : " + arg + "]";
 				}
-				
 				if (p.getIn().equals("body")) {
-					json.put("id", 1);
-					json.put("name", "ThePet");
-					json.put("tag", "TheTag");
+					int randomCase = new Random().nextInt(9);
+					switch (randomCase) {
+					case 0:
+						break;
+					case 1:
+						json.put("id", new Random().nextInt());
+						break;
+					case 2:
+						json.put("id", String.valueOf(new Random().nextInt()));
+						break;
+					case 3:
+						json.put("id", new Random().nextInt());
+						json.put("name", new Random().nextInt());
+						json.put("tag", new Random().nextInt());
+						break;
+					case 4:
+						json.put("id", String.valueOf(new Random().nextInt()));
+						json.put("name", String.valueOf(new Random().nextInt()));
+						json.put("tag", String.valueOf(new Random().nextInt()));
+						break;
+					case 5:
+						json.put("id", new Random().nextInt());
+						json.put("name", String.valueOf(new Random().nextInt()));
+						break;
+					case 6:
+						json.put("id", new Random().nextInt());
+						json.put("name", new Random().nextInt());
+						break;
+					case 7:
+						json.put("id", new Random().nextInt());
+						json.put("tag", String.valueOf(new Random().nextInt()));
+						break;
+					case 8:
+						json.put("id", new Random().nextInt());
+						json.put("tag", new Random().nextInt());
+						break;
+					default:
+						break;
+					}
+					
+					args += "[" + p.getName() + " : " + json.toJSONString() + "]";
 				}
 			}
-		}		
+		}
 
 		URL object = new URL(url);
 
@@ -192,10 +247,10 @@ public class Fuzzer {
 
 		try {
 			responseCode = con.getResponseCode();
-			//System.out.println("\nSending '" + method + "' request to URL : "
-			//		+ url);
-			//System.out.println("Post parameters : " + json.toJSONString());
-			//System.out.println("Response Code : " + responseCode);
+			// System.out.println("\nSending '" + method + "' request to URL : "
+			// + url);
+			// System.out.println("Post parameters : " + json.toJSONString());
+			// System.out.println("Response Code : " + responseCode);
 
 			BufferedReader in = new BufferedReader(new InputStreamReader(
 					con.getInputStream()));
@@ -216,7 +271,8 @@ public class Fuzzer {
 			in.close();
 		}
 		// print result
-		//System.out.println(response.toString());
-		return new Pair<Integer, String>(responseCode, response.toString());
+		// System.out.println(response.toString());
+		return new Triplet<Integer, String, String>(responseCode,
+				response.toString(), args);
 	}
 }

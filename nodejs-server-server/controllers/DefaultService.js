@@ -11,7 +11,11 @@ exports.addPet = function(args, res, next) {
   "id" : 123456789,
   "tag" : "aeiou"
 };
-  if(Object.keys(examples).length > 0) {
+	if(args.pet.value && args.pet.value.id > 2000){
+		res.statusCode = 413;
+		res.end('Id of pet too big');
+	}
+  else if(Object.keys(examples).length > 0) {
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(examples[Object.keys(examples)[0]] || {}, null, 2));
   }

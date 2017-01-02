@@ -10,8 +10,12 @@ exports.addPet = function(args, res, next) {
   "name" : "aeiou",
   "id" : 123456789,
   "tag" : "aeiou"
-};
-  if(Object.keys(examples).length > 0) {
+};console.log(args.pet.value);
+	if(args.pet.value && args.pet.value.id > 2000){
+		res.statusCode = 413;
+		res.end('Id of pet too big');
+	}
+  else if(Object.keys(examples).length > 0) {
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify(examples[Object.keys(examples)[0]] || {}, null, 2));
   }
@@ -28,7 +32,7 @@ exports.deletePet = function(args, res, next) {
   **/
   // no response value expected for this operation
 	if(args.id.value > 400) {
-		res.statusCode = 400;
+		res.statusCode = 404;
 		res.end('Pet not found');
 	}
 	else {
@@ -48,7 +52,7 @@ exports.findPetById = function(args, res, next) {
   "tag" : "aeiou"
 };
 	if(args.id.value > 400) {
-		res.statusCode = 400;
+		res.statusCode = 404;
 		res.end('Pet not found');
 	}
   else if(Object.keys(examples).length > 0) {

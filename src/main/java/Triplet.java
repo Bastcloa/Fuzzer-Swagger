@@ -1,10 +1,12 @@
-class Pair<T, V> {
+class Triplet<T, V, U> {
     private final T m_first;
     private final V m_second;
+    private final U m_third;
 
-    public Pair(T first, V second) {
+    public Triplet(T first, V second, U third) {
         m_first = first;
         m_second = second;
+        m_third = third;
     }
 
     public T first() {
@@ -13,5 +15,9 @@ class Pair<T, V> {
 
     public V second() {
         return m_second;
+    }
+    
+    public U third() {
+        return m_third;
     }
 }
