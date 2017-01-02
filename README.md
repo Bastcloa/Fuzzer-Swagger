@@ -13,4 +13,5 @@ Swagger.io nous a permis de génerer la partie Serveur du petstore en Node.js. N
 
 ## Utilisation
 Afin d’utiliser notre fuzzer, il faut tout d’abord lancer l’API PetStore en lançant la commande depuis le dossier "nodejs-server-server" : npm start
+
 Puis, il faut lancer le test JUnit présent dans le fichier “/src/main/java/Fuzzer.java”.
